@@ -52,3 +52,6 @@ Revision history for Image::IPTCInfo.
      - Trashing application data blocks now preserves APP0 if it's
        there, since that includes the image resolution, and you need
 	   an APP0 block anyway.
+
+1.91
+     - Added 'local caption' field, 121. (Thanks, Joe.)

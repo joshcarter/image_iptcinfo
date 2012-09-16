@@ -8,7 +8,7 @@
 package Image::IPTCInfo;
 
 use vars qw($VERSION);
-$VERSION = '1.9';
+$VERSION = '1.91';
 
 #
 # Global vars
@@ -70,6 +70,7 @@ my $error;
 	116	=> 'copyright notice',
 #	118	=> 'contact',            # in listdatasets
 	120	=> 'caption/abstract',
+	121	=> 'local caption',
 	122	=> 'writer/editor',
 #	125	=> 'rasterized caption', # unsupported (binary data)
 	130	=> 'image type',
@@ -1033,9 +1034,14 @@ sub CollectAdobeParts
 		my ($ostype, $id1, $id2) = unpack("NCC", substr($data, $offset, 6));
 		$offset += 6;
 
+		# printf("CollectAdobeParts: ID %2.2x %2.2x\n", $id1, $id2);
+		
 		# Get pascal string
 		my ($stringlen) = unpack("C", substr($data, $offset, 1));
 		$offset += 1;
+
+		# printf("CollectAdobeParts: str len %d\n", $stringlen);
+		
 		my $string = substr($data, $offset, $stringlen);
 		$offset += $stringlen;
 		# round up if odd
@@ -1046,6 +1052,8 @@ sub CollectAdobeParts
 		# Get variable-size data
 		my ($size) = unpack("N", substr($data, $offset, 4));
 		$offset += 4;
+
+		# printf("CollectAdobeParts: size %d\n", $size);
 
 		my $var = substr($data, $offset, $size);
 		$offset += $size;
@@ -1439,28 +1447,28 @@ into the SQL.
 
 =head1 IPTC ATTRIBUTE REFERENCE
 
-  object name               originating program              
-  edit status               program version                  
-  editorial update          object cycle                     
-  urgency                   by-line                          
-  subject reference         by-line title                    
-  category                  city                             
-  fixture identifier        sub-location                     
-  content location code     province/state                   
-  content location name     country/primary location code    
-  release date              country/primary location name    
-  release time              original transmission reference  
-  expiration date           headline                         
-  expiration time           credit                           
-  special instructions      source                           
-  action advised            copyright notice                 
-  reference service         contact                          
-  reference date            caption/abstract                 
-  reference number          writer/editor                    
-  date created              image type                       
-  time created              image orientation                
-  digital creation date     language identifier
-  digital creation time
+  object name               originating program
+  edit status               program version
+  editorial update          object cycle
+  urgency                   by-line
+  subject reference         by-line title
+  category                  city
+  fixture identifier        sub-location
+  content location code     province/state
+  content location name     country/primary location code
+  release date              country/primary location name
+  release time              original transmission reference
+  expiration date           headline
+  expiration time           credit
+  special instructions      source
+  action advised            copyright notice
+  reference service         contact
+  reference date            caption/abstract
+  reference number          local caption
+  date created              writer/editor
+  time created              image type
+  digital creation date     image orientation
+  digital creation time     language identifier
 
   custom1 - custom20: NOT STANDARD but used by Fotostation.
   IPTCInfo also supports these fields.
