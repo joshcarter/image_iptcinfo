@@ -8,19 +8,22 @@
 package Image::IPTCInfo;
 
 use vars qw($VERSION);
-$VERSION = '1.91';
+$VERSION = '1.93';
 
 #
 # Global vars
 #
-use vars ('%datasets',		# master list of dataset id's
-		  '%datanames',     # reverse mapping (for saving)
-		  '%listdatasets',	# master list of repeating dataset id's
-		  '%listdatanames', # reverse
+use vars ('%datasets',		  # master list of dataset id's
+		  '%datanames',       # reverse mapping (for saving)
+		  '%listdatasets',	  # master list of repeating dataset id's
+		  '%listdatanames',   # reverse
+		  '$MAX_FILE_OFFSET', # maximum offset for blind scan
 		  );
 
+$MAX_FILE_OFFSET = 8192; # default blind scan depth
+
 # Debug off for production use
-my $debugMode = 0;
+my $debugMode = 1;
 my $error;
 	  
 #####################################
@@ -292,6 +295,21 @@ sub SetAttribute
 	my ($self, $attribute, $newval) = @_;
 
 	$self->{_data}->{$attribute} = $newval;
+}
+
+sub ClearAttributes
+{
+	my $self = shift;
+
+	$self->{_data} = {};
+}
+
+sub ClearAllData
+{
+	my $self = shift;
+
+	$self->{_data} = {};
+	$self->{_listdata} = {};
 }
 
 #
@@ -768,16 +786,13 @@ sub JPEGSkipVariable
 #
 sub BlindScan
 {
-	my $MAX = shift;
-
-	$MAX = 8192 unless defined($MAX); # keep within first 8192 bytes 
-                                      # NOTE: this may need to change
-
-	Log("BlindScan: starting scan, max length $MAX");
+    my $maxoff = shift() || $MAX_FILE_OFFSET;
+    
+	Log("BlindScan: starting scan, max length $maxoff");
 	
 	# start digging
 	my $offset = 0;
-	while ($offset <= $MAX)
+	while ($offset <= $maxoff)
 	{
 		my $temp;
 		
@@ -1022,7 +1037,7 @@ sub CollectAdobeParts
 	my ($data) = @_;
 	my $length = length($data);
 	my $offset = 0;
-	my $out;
+	my $out = '';
 
 	# Skip preamble
 	$offset = length('Photoshop 3.0 ');
@@ -1032,13 +1047,13 @@ sub CollectAdobeParts
 	{
 		# Get OSType and ID
 		my ($ostype, $id1, $id2) = unpack("NCC", substr($data, $offset, 6));
-		$offset += 6;
+		last unless (($offset += 6) < $length); # $offset += 6;
 
 		# printf("CollectAdobeParts: ID %2.2x %2.2x\n", $id1, $id2);
 		
 		# Get pascal string
 		my ($stringlen) = unpack("C", substr($data, $offset, 1));
-		$offset += 1;
+		last unless (++$offset < $length); # $offset += 1;
 
 		# printf("CollectAdobeParts: str len %d\n", $stringlen);
 		
@@ -1048,10 +1063,11 @@ sub CollectAdobeParts
 		$offset++ if ($stringlen % 2 != 0);
 		# there should be a null if string len is 0
 		$offset++ if ($stringlen == 0);
+		last unless ($offset < $length);
 
 		# Get variable-size data
 		my ($size) = unpack("N", substr($data, $offset, 4));
-		$offset += 4;
+		last unless (($offset += 4) < $length);  # $offset += 4;
 
 		# printf("CollectAdobeParts: size %d\n", $size);
 
@@ -1065,8 +1081,7 @@ sub CollectAdobeParts
 			$out .= pack("NCC", $ostype, $id1, $id2);
 			$out .= pack("C", $stringlen);
 			$out .= $string;
-			$out .= pack("C", 0) if ($stringlen == 0 || 
-									 $stringlen % 2 != 0);
+			$out .= pack("C", 0) if ($stringlen == 0 || $stringlen % 2 != 0);
 			$out .= pack("N", $size);
 			$out .= $var;
 			$out .= pack("C", 0) if ($size % 2 != 0 && length($out) % 2 != 0);
@@ -1121,6 +1136,8 @@ sub PackedIIMData
 		if ($dataset == 0)
 		{ Log("PackedIIMData: illegal dataname $key"); next; }
 
+        next unless $value;
+
 		my ($tag, $record) = (0x1c, 0x02);
 
 		$out .= pack("CCCn", $tag, $record, $dataset, length($value));
@@ -1137,6 +1154,8 @@ sub PackedIIMData
 
 		foreach my $value (@{$self->{_listdata}->{$key}})
 		{
+		    next unless $value;
+		    
 			my ($tag, $record) = (0x1c, 0x02);
 
 			$out .= pack("CCCn", $tag, $record, $dataset, length($value));
