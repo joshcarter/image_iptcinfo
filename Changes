@@ -1,0 +1,11 @@
+Revision history for Image::IPTCInfo.
+
+1.1  May 23, 2001 by Josh Carter
+     - Properly packaged the module with makefile and such
+     - Fixed stupid byte-ordering bug on Intel architectures.
+
+To Do:
+     - Add 1.5 to this file
+	 - Add credits list
+     - fix BlindScan to include other possible marker
+     - "round up if odd, always at least 1" ????
